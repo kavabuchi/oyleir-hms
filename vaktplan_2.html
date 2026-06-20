@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Øyleir Vakt">
+<meta name="theme-color" content="#1F4E79">
+<title>Vaktplan – Øyleir 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; font-size: 15px; }
+
+header { background: #1F4E79; color: white; padding: 16px; text-align: center; }
+header h1 { font-size: 20px; }
+header p { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+
+nav { display: flex; background: #2E75B6; overflow-x: auto; }
+nav button { flex: 1 0 auto; background: none; border: none; color: rgba(255,255,255,0.7); padding: 13px 10px; font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+nav button.active { color: white; border-bottom-color: white; font-weight: bold; }
+
+.page { display: none; padding: 14px; }
+.page.active { display: block; }
+
+/* CARDS */
+.card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.card-title { font-size: 13px; font-weight: bold; color: #1F4E79; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; }
+
+/* FORM */
+label { display: block; font-size: 12px; font-weight: bold; color: #444; margin-bottom: 4px; margin-top: 10px; }
+label:first-child { margin-top: 0; }
+input, select, textarea { width: 100%; border: 1.5px solid #ccc; border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: Arial, sans-serif; background: white; color: #1a1a1a; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #2E75B6; }
+textarea { resize: vertical; }
+
+/* BUTTONS */
+.btn { border: none; border-radius: 7px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+.btn-primary { background: #1F4E79; color: white; }
+.btn-orange { background: #E67E00; color: white; }
+.btn-red { background: #C00000; color: white; }
+.btn-gray { background: #eee; color: #333; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+/* DAY BLOCKS */
+.day-block { background: white; border-radius: 10px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.day-header { background: #1F4E79; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.day-header h3 { font-size: 14px; font-weight: bold; color: white; }
+.day-header span { font-size: 11px; color: rgba(255,255,255,0.65); }
+.day-body { display: none; padding: 10px 12px; }
+.day-body.open { display: block; }
+
+.shift { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.shift-early { background: #EBF2FA; border-left: 4px solid #2E75B6; }
+.shift-late { background: #F3EBF9; border-left: 4px solid #7B0099; }
+.shift-label { font-size: 12px; font-weight: bold; }
+.shift-early .shift-label { color: #1F4E79; }
+.shift-late .shift-label { color: #7B0099; }
+.shift-time { font-size: 11px; color: #666; margin-top: 1px; }
+.shift-person { font-size: 14px; color: #1a1a1a; margin-top: 4px; font-weight: bold; }
+.shift-person.empty { color: #aaa; font-weight: normal; font-style: italic; }
+.edit-btn { background: #eee; border: none; border-radius: 6px; padding: 6px 12px; color: #444; font-size: 12px; cursor: pointer; white-space: nowrap; }
+
+/* VOLUNTEERS */
+.vol-chip { display: inline-flex; align-items: center; background: #EBF2FA; border-radius: 20px; padding: 5px 12px; margin: 3px; font-size: 13px; color: #1F4E79; gap: 8px; border: 1px solid #BDD5EA; }
+.vol-chip button { background: none; border: none; color: #C00000; cursor: pointer; font-size: 15px; padding: 0; line-height: 1; }
+.vol-list { margin-bottom: 10px; min-height: 40px; }
+
+/* VISITORS */
+.visitor-row { background: white; border-radius: 8px; padding: 11px 13px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #2E75B6; }
+.vrow-top { display: flex; justify-content: space-between; align-items: center; }
+.vrow-name { font-size: 14px; font-weight: bold; color: #1F4E79; }
+.vrow-count { background: #1F4E79; color: white; border-radius: 12px; padding: 2px 9px; font-size: 12px; font-weight: bold; }
+.vrow-details { font-size: 12px; color: #666; margin-top: 5px; }
+.del-btn { background: none; border: none; color: #C00000; cursor: pointer; font-size: 17px; padding: 0 2px; }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; justify-content: center; padding: 0; }
+.modal-bg.open { display: flex; }
+.modal { background: white; border-radius: 16px 16px 0 0; padding: 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { color: #1F4E79; margin-bottom: 14px; font-size: 16px; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; }
+
+.empty { text-align: center; color: #aaa; padding: 24px 10px; font-size: 14px; }
+
+.save-indicator { font-size: 11px; color: #276221; text-align: right; padding: 4px 0; display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏕 Øyleir 2026 — Vaktplan</h1>
+  <p>Barneskjær/Fjærholmen · 18.–25. juli 2026</p>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('vakt', this)">🔥 Bålvakt</button>
+  <button onclick="showPage('volunteers', this)">👥 Frivillige</button>
+  <button onclick="showPage('visitors', this)">📋 Besøk</button>
+</nav>
+
+<!-- VAKTPLAN -->
+<div class="page active" id="page-vakt">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">🔥 Bålvaktplan · 7 netter</div>
+    <div style="font-size:12px;color:#666">To skift per natt: <b>23:00–03:00</b> og <b>03:00–07:00</b><br>Trykk på en natt for å tildele vakt.</div>
+  </div>
+  <div id="vakt-days"></div>
+</div>
+
+<!-- FRIVILLIGE -->
+<div class="page" id="page-volunteers">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">👥 Frivillige / Vakter</div>
+    <div class="vol-list" id="vol-list"></div>
+    <label>Legg til frivillig</label>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="vol-input" placeholder="Navn..." style="flex:1;margin:0">
+      <button class="btn btn-primary" style="width:auto;padding:9px 18px;margin:0" onclick="addVolunteer()">+</button>
+    </div>
+    <div class="save-indicator" id="vol-saved">✓ Lagret</div>
+  </div>
+</div>
+
+<!-- BESØK -->
+<div class="page" id="page-visitors">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">📋 Besøkstabell</div>
+    <button class="btn btn-primary" style="margin-top:0" onclick="openVisitorModal()">+ Registrer besøk</button>
+  </div>
+  <div id="visitor-list"></div>
+</div>
+
+<!-- MODAL: SHIFT -->
+<div class="modal-bg" id="modal-shift">
+  <div class="modal">
+    <h3 id="modal-shift-title">Rediger vakt</h3>
+    <label>Frivillig</label>
+    <select id="modal-shift-person">
+      <option value="">— Ingen tildelt —</option>
+    </select>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal('modal-shift')">Avbryt</button>
+      <button class="btn btn-primary" onclick="saveShift()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISITOR -->
+<div class="modal-bg" id="modal-visitor">
+  <div class="modal">
+    <h3>Registrer besøk</h3>
+    <label>Navn / Gruppe</label>
+    <input type="text" id="v-name" placeholder="Navn eller gruppe...">
+    <label>Antall personer</label>
+    <input type="number" id="v-count" min="1" value="1">
+    <label>Dag</label>
+    <select id="v-day">
+      <option>18. juli (fredag)</option>
+      <option>19. juli (lørdag)</option>
+      <option>20. juli (søndag)</option>
+      <option>21. juli (mandag)</option>
+      <option>22. juli (tirsdag)</option>
+      <option>23. juli (onsdag)</option>
+      <option>24. juli (torsdag)</option>
+      <option>25. juli (fredag)</option>
+    </select>
+    <label>Tid inn</label>
+    <input type="time" id="v-in" value="12:00">
+    <label>Tid ut</label>
+    <input type="time" id="v-out" value="16:00">
+    <label>Merknad (valgfritt)</label>
+    <input type="text" id="v-note" placeholder="F.eks. Rotary, foreldre...">
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal('modal-visitor')">Avbryt</button>
+      <button class="btn btn-primary" onclick="saveVisitor()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS = [
+  { label: 'Natt 18→19. juli', key: 'd0' },
+  { label: 'Natt 19→20. juli', key: 'd1' },
+  { label: 'Natt 20→21. juli', key: 'd2' },
+  { label: 'Natt 21→22. juli', key: 'd3' },
+  { label: 'Natt 22→23. juli', key: 'd4' },
+  { label: 'Natt 23→24. juli', key: 'd5' },
+  { label: 'Natt 24→25. juli', key: 'd6' },
+];
+
+const STORAGE_KEY = 'oyleir_vakt_v2';
+
+let state = { volunteers: [], shifts: {}, visitors: [] };
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state = Object.assign({ volunteers: [], shifts: {}, visitors: [] }, JSON.parse(raw));
+  } catch(e) { console.warn('Load error', e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch(e) { console.warn('Save error', e); }
+}
+
+// ---- VAKT ----
+function renderVakt() {
+  const container = document.getElementById('vakt-days');
+  container.innerHTML = '';
+  DAYS.forEach((day, i) => {
+    const ek = day.key + '_early', lk = day.key + '_late';
+    const ep = state.shifts[ek] || '', lp = state.shifts[lk] || '';
+    const div = document.createElement('div');
+    div.className = 'day-block';
+    div.innerHTML = `
+      <div class="day-header" onclick="toggleDay('db${i}')">
+        <h3>🔥 ${day.label}</h3>
+        <span>${ep && lp ? '✓ Begge tildelt' : ep || lp ? '½ En tildelt' : 'Ikke tildelt'}</span>
+      </div>
+      <div class="day-body" id="db${i}">
+        <div class="shift shift-early">
+          <div>
+            <div class="shift-label">🌙 Skift 1 · 23:00–03:00</div>
+            <div class="shift-person ${ep ? '' : 'empty'}">${ep || 'Ingen tildelt'}</div>
+          </div>
+          <button class="edit-btn" onclick="openShiftModal('${ek}','${day.label} · 23–03')">Endre</button>
+        </div>
+        <div class="shift shift-late">
+          <div>
+            <div class="shift-label">🌅 Skift 2 · 03:00–07:00</div>
+            <div class="shift-person ${lp ? '' : 'empty'}">${lp || 'Ingen tildelt'}</div>
+          </div>
+          <button class="edit-btn" onclick="openShiftModal('${lk}','${day.label} · 03–07')">Endre</button>
+        </div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function toggleDay(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+let currentShiftKey = '';
+function openShiftModal(key, title) {
+  currentShiftKey = key;
+  document.getElementById('modal-shift-title').textContent = title;
+  const sel = document.getElementById('modal-shift-person');
+  sel.innerHTML = '<option value="">— Ingen tildelt —</option>';
+  state.volunteers.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (state.shifts[key] === v) o.selected = true;
+    sel.appendChild(o);
+  });
+  if (state.volunteers.length === 0) {
+    sel.innerHTML = '<option value="">— Legg til frivillige først —</option>';
+  }
+  document.getElementById('modal-shift').classList.add('open');
+}
+
+function saveShift() {
+  const val = document.getElementById('modal-shift-person').value;
+  if (val) state.shifts[currentShiftKey] = val;
+  else delete state.shifts[currentShiftKey];
+  saveState();
+  renderVakt();
+  closeModal('modal-shift');
+}
+
+// ---- VOLUNTEERS ----
+function renderVolunteers() {
+  const list = document.getElementById('vol-list');
+  if (!state.volunteers.length) {
+    list.innerHTML = '<div class="empty">Ingen frivillige ennå — legg til nedenfor</div>';
+    return;
+  }
+  list.innerHTML = state.volunteers.map((v, i) =>
+    `<span class="vol-chip">${v}<button onclick="removeVolunteer(${i})">×</button></span>`
+  ).join('');
+}
+
+function addVolunteer() {
+  const input = document.getElementById('vol-input');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!state.volunteers.includes(name)) {
+    state.volunteers.push(name);
+    saveState();
+    renderVolunteers();
+    const ind = document.getElementById('vol-saved');
+    ind.style.display = 'block';
+    setTimeout(() => ind.style.display = 'none', 2000);
+  }
+  input.value = '';
+  input.focus();
+}
+
+document.getElementById('vol-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addVolunteer(); }
+});
+
+function removeVolunteer(i) {
+  const name = state.volunteers[i];
+  state.volunteers.splice(i, 1);
+  Object.keys(state.shifts).forEach(k => { if (state.shifts[k] === name) delete state.shifts[k]; });
+  saveState();
+  renderVolunteers();
+  renderVakt();
+}
+
+// ---- VISITORS ----
+function renderVisitors() {
+  const list = document.getElementById('visitor-list');
+  if (!state.visitors.length) {
+    list.innerHTML = '<div class="empty">Ingen besøk registrert ennå</div>';
+    return;
+  }
+  list.innerHTML = state.visitors.map((v, i) => `
+    <div class="visitor-row">
+      <div class="vrow-top">
+        <span class="vrow-name">${v.name}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="vrow-count">${v.count} pers.</span>
+          <button class="del-btn" onclick="removeVisitor(${i})">🗑</button>
+        </span>
+      </div>
+      <div class="vrow-details">📅 ${v.day} &nbsp;·&nbsp; ⏰ ${v.inn}–${v.out}${v.note ? ' &nbsp;·&nbsp; ' + v.note : ''}</div>
+    </div>`).join('');
+}
+
+function openVisitorModal() {
+  ['v-name','v-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('v-count').value = 1;
+  document.getElementById('v-day').selectedIndex = 0;
+  document.getElementById('v-in').value = '12:00';
+  document.getElementById('v-out').value = '16:00';
+  document.getElementById('modal-visitor').classList.add('open');
+}
+
+function saveVisitor() {
+  const name = document.getElementById('v-name').value.trim();
+  if (!name) { alert('Fyll inn navn eller gruppe'); return; }
+  state.visitors.push({
+    name,
+    count: document.getElementById('v-count').value || 1,
+    day: document.getElementById('v-day').value,
+    inn: document.getElementById('v-in').value,
+    out: document.getElementById('v-out').value,
+    note: document.getElementById('v-note').value.trim()
+  });
+  saveState();
+  renderVisitors();
+  closeModal('modal-visitor');
+}
+
+function removeVisitor(i) {
+  if (confirm('Fjern dette besøket?')) {
+    state.visitors.splice(i, 1);
+    saveState();
+    renderVisitors();
+  }
+}
+
+// ---- UTILS ----
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if (e.target === bg) bg.classList.remove('open'); });
+});
+
+// ---- INIT ----
+loadState();
+renderVakt();
+renderVolunteers();
+renderVisitors();
+
+// Inline PWA Service Worker
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE='oyleir-vakt-v2';
+    self.addEventListener('install',e=>{self.skipWaiting();});
+    self.addEventListener('activate',e=>{self.clients.claim();});
+    self.addEventListener('fetch',e=>{
+      e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+        return caches.open(CACHE).then(c=>{c.put(e.request,res.clone());return res;});
+      }).catch(()=>caches.match(e.request))));
+    });
+  `;
+  const blob = new Blob([swCode], {type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
