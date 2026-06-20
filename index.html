@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Øyleir HMS">
+<meta name="theme-color" content="#1F4E79">
+<link rel="manifest" href="manifest.json">
+<title>Hendelsesrapport – Øyleir 2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; font-size: 16px; }
+
+  header { background: #1F4E79; color: white; padding: 16px; text-align: center; }
+  header h1 { font-size: 20px; }
+  header p { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+  .always { background: #C00000; color: white; padding: 10px 16px; font-size: 14px; font-weight: bold; text-align: center; }
+
+  nav { display: flex; background: #2E75B6; overflow-x: auto; }
+  nav button { flex: 1 0 auto; background: none; border: none; color: rgba(255,255,255,0.75); padding: 12px 10px; font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+  nav button.active { color: white; border-bottom-color: white; font-weight: bold; }
+
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+
+  /* LEVELS */
+  .level { border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+  .level h3 { font-size: 16px; margin-bottom: 6px; }
+  .level p { font-size: 14px; }
+  .l1 { background: #C6EFCE; color: #276221; }
+  .l2 { background: #FFEB9C; color: #9C6500; }
+  .l3 { background: #FFC7CE; color: #9C0006; }
+
+  /* CONTACTS */
+  .contact-card { background: white; border-radius: 8px; padding: 14px; margin-bottom: 10px; border-left: 5px solid #2E75B6; }
+  .contact-card.priority { border-left-color: #C00000; }
+  .contact-card h3 { font-size: 16px; font-weight: bold; }
+  .contact-card .when { font-size: 13px; color: #555; margin-top: 4px; }
+  .contact-card .note { font-size: 13px; color: #333; margin-top: 6px; background: #f0f0f0; padding: 6px 8px; border-radius: 4px; }
+
+  /* INCIDENTS */
+  .incident { background: white; border-radius: 8px; margin-bottom: 14px; overflow: hidden; border: 1px solid #ddd; }
+  .incident-header { padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .incident-header h3 { font-size: 15px; font-weight: bold; }
+  .incident-header .badge { padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+  .b1 { background: #C6EFCE; color: #276221; }
+  .b2 { background: #FFEB9C; color: #9C6500; }
+  .b3 { background: #FFC7CE; color: #9C0006; }
+  .incident-body { display: none; padding: 12px 14px; border-top: 1px solid #eee; }
+  .incident-body.open { display: block; }
+  .step-label { font-size: 12px; font-weight: bold; color: #888; text-transform: uppercase; margin-top: 10px; margin-bottom: 3px; }
+  .step-val { font-size: 14px; }
+
+  /* FORM */
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; font-weight: bold; color: #444; margin-bottom: 5px; }
+  input, textarea, select { width: 100%; border: 1.5px solid #ccc; border-radius: 6px; padding: 10px; font-size: 15px; font-family: Arial, sans-serif; background: white; }
+  textarea { resize: vertical; }
+  .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-primary { flex: 1; background: #1F4E79; color: white; border: none; border-radius: 8px; padding: 14px; font-size: 16px; font-weight: bold; cursor: pointer; }
+  .btn-secondary { flex: 1; background: #eee; color: #333; border: none; border-radius: 8px; padding: 14px; font-size: 15px; cursor: pointer; }
+  .btn-danger { background: #C00000; color: white; border: none; border-radius: 8px; padding: 14px; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 8px; }
+
+  #preview-box { background: white; border: 1px solid #ccc; border-radius: 8px; padding: 16px; font-size: 14px; white-space: pre-wrap; margin-top: 16px; display: none; }
+
+  h2.section-title { font-size: 17px; color: #1F4E79; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏕 Øyleir 2026 — HMS</h1>
+  <p>Barneskjær/Fjærholmen · 18.–26. juli 2026</p>
+</header>
+<div class="always">⚠️ Anastasia varsles ALLTID ved enhver hendelse</div>
+
+<nav>
+  <button class="active" onclick="showPage('levels', this)">Nivåer</button>
+  <button onclick="showPage('contacts', this)">Kontakter</button>
+  <button onclick="showPage('incidents', this)">Hendelser</button>
+  <button onclick="showPage('form', this)">Rapport</button>
+</nav>
+
+<!-- PAGE: LEVELS -->
+<div class="page active" id="page-levels">
+  <br>
+  <h2 class="section-title">Alvorlighetsnivåer</h2>
+  <div class="level l1">
+    <h3>Nivå 1 — Lav</h3>
+    <p>Mindre skade, ingen livsfare. Håndteres av vaktleder på stedet.</p>
+  </div>
+  <div class="level l2">
+    <h3>Nivå 2 — Middels</h3>
+    <p>Skade som krever førstehjelp, psykisk krise, konflikt. Varsle HMS-ansvarlig og Anastasia.</p>
+  </div>
+  <div class="level l3">
+    <h3>Nivå 3 — Høy</h3>
+    <p>Alvorlig skade, forsvunnet deltaker, brann/drukning. Ring 112/113 + varsle hele ledelsen umiddelbart.</p>
+  </div>
+</div>
+
+<!-- PAGE: CONTACTS -->
+<div class="page" id="page-contacts">
+  <br>
+  <h2 class="section-title">Varslingsrekkefølge</h2>
+  <div class="contact-card priority">
+    <h3>🔴 Anastasia</h3>
+    <div class="when">Varsles ved ALLE hendelser (nivå 1–3)</div>
+    <div class="note">Alltid CC på hendelsesrapport – uten unntak</div>
+  </div>
+  <div class="contact-card">
+    <h3>Mykhailo (HMS-ansvarlig)</h3>
+    <div class="when">Varsles ved nivå 2–3</div>
+    <div class="note">Koordinerer oppfølging og dokumentasjon</div>
+  </div>
+  <div class="contact-card">
+    <h3>Leirleder / Gunnar</h3>
+    <div class="when">Varsles ved nivå 2–3</div>
+    <div class="note">Overordnet ansvar</div>
+  </div>
+  <div class="contact-card">
+    <h3>Foresatte</h3>
+    <div class="when">Informeres så snart som mulig (nivå 2–3)</div>
+  </div>
+  <div class="contact-card" style="border-left-color:#C00000;">
+    <h3>🚨 Nødetat</h3>
+    <div class="when">Nivå 3 — ring umiddelbart</div>
+    <div class="note" style="font-weight:bold">Medisinsk: 113 · Brann: 110 · Politi: 112</div>
+  </div>
+</div>
+
+<!-- PAGE: INCIDENTS -->
+<div class="page" id="page-incidents">
+  <br>
+  <h2 class="section-title">Protokoll per hendelsestype</h2>
+  <p style="font-size:13px;color:#666;margin-bottom:12px">Trykk på en hendelse for detaljer</p>
+
+  <div id="incident-list"></div>
+</div>
+
+<!-- PAGE: FORM -->
+<div class="page" id="page-form">
+  <br>
+  <h2 class="section-title">Hendelsesrapport</h2>
+  <div class="form-group">
+    <label>Dato og tid</label>
+    <input type="datetime-local" id="f-datetime">
+  </div>
+  <div class="form-group">
+    <label>Sted</label>
+    <input type="text" id="f-place" placeholder="F.eks. brygga, skogen, huset...">
+  </div>
+  <div class="form-group">
+    <label>Berørte person(er)</label>
+    <input type="text" id="f-persons" placeholder="Navn(er)">
+  </div>
+  <div class="form-group">
+    <label>Type hendelse</label>
+    <select id="f-type">
+      <option value="">-- Velg --</option>
+      <option>Skade / førstehjelp</option>
+      <option>Alvorlig skade</option>
+      <option>Panikkanfall / psykologisk krise</option>
+      <option>Alvorlig psykisk krise</option>
+      <option>Forsvunnet deltaker</option>
+      <option>Konflikt mellom deltakere</option>
+      <option>Brann</option>
+      <option>Drukningsfare / vannulykke</option>
+      <option>Annet</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Alvorlighetsnivå</label>
+    <select id="f-level">
+      <option value="">-- Velg --</option>
+      <option>1 — Lav</option>
+      <option>2 — Middels</option>
+      <option>3 — Høy</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Beskrivelse av hendelsen</label>
+    <textarea id="f-desc" rows="4" placeholder="Beskriv hva som skjedde..."></textarea>
+  </div>
+  <div class="form-group">
+    <label>Tiltak gjennomført</label>
+    <textarea id="f-action" rows="3" placeholder="Hva ble gjort?"></textarea>
+  </div>
+  <div class="form-group">
+    <label>Varslet (hvem og når)</label>
+    <textarea id="f-notified" rows="2" placeholder="F.eks. Anastasia kl. 14:30, 113 ringt kl. 14:32..."></textarea>
+  </div>
+  <div class="form-group">
+    <label>Oppfølging nødvendig?</label>
+    <textarea id="f-followup" rows="2" placeholder="Ja / Nei — eventuelt hva..."></textarea>
+  </div>
+  <div class="form-group">
+    <label>Signatur (ansvarlig vakt)</label>
+    <input type="text" id="f-sig" placeholder="Navn">
+  </div>
+
+  <div class="form-actions">
+    <button class="btn-secondary" onclick="clearForm()">Tøm</button>
+    <button class="btn-primary" onclick="generateReport()">📋 Vis rapport</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button id="btn-copy" class="btn-danger" style="flex:1" onclick="copyReport()">📋 Kopier tekst</button>
+    <button class="btn-danger" style="flex:1;background:#7B0099;" onclick="sendEmail()">📧 Send e-post</button>
+  </div>
+
+  <pre id="preview-box"></pre>
+</div>
+
+<script>
+const incidents = [
+  { type: "Skade / førstehjelp\n(kutt, skrubbsår, neglskade)", level: "1", badge: "b1",
+    immediate: "Gi førstehjelp. Vurder behov for lege.",
+    notify: "Anastasia (alltid)",
+    doc: "Fyll ut hendelsesrapport" },
+  { type: "Alvorlig skade\n(brudd, hodeskade, besvimelse)", level: "3", badge: "b3",
+    immediate: "Ring 113 umiddelbart. Ikke flytt skadd person.",
+    notify: "Anastasia + Leirleder + foresatte + 113",
+    doc: "Hendelsesrapport + logg" },
+  { type: "Panikkanfall / psykologisk krise", level: "2", badge: "b2",
+    immediate: "Ro ned personen. Ta til rolig sted. Bruk protokoll for panikkanfall.",
+    notify: "Anastasia + HMS-ansvarlig",
+    doc: "Hendelsesrapport" },
+  { type: "Alvorlig psykisk krise", level: "3", badge: "b3",
+    immediate: "Vær hos personen hele tiden. Ring 113 om nødvendig.",
+    notify: "Anastasia + Leirleder + foresatte",
+    doc: "Hendelsesrapport + logg" },
+  { type: "Forsvunnet deltaker", level: "3", badge: "b3",
+    immediate: "Start søk umiddelbart. Del opp i grupper.",
+    notify: "Anastasia + Leirleder + Ring 112",
+    doc: "Hendelsesrapport + tidslinje" },
+  { type: "Konflikt mellom deltakere", level: "2", badge: "b2",
+    immediate: "Skill partene. Snakk med hver enkelt.",
+    notify: "Anastasia + HMS-ansvarlig",
+    doc: "Hendelsesrapport om nødvendig" },
+  { type: "Brann", level: "3", badge: "b3",
+    immediate: "Evakuer alle umiddelbart. Ring 110.",
+    notify: "Anastasia + Leirleder + Ring 110",
+    doc: "Hendelsesrapport + logg" },
+  { type: "Drukningsfare / vannulykke", level: "3", badge: "b3",
+    immediate: "Kast redningsbøye. Ring 112. Start HLR om nødvendig.",
+    notify: "Anastasia + Leirleder + Ring 112",
+    doc: "Hendelsesrapport + logg" },
+];
+
+const list = document.getElementById('incident-list');
+incidents.forEach((inc, i) => {
+  const div = document.createElement('div');
+  div.className = 'incident';
+  div.innerHTML = `
+    <div class="incident-header" onclick="toggleIncident(${i})">
+      <h3>${inc.type.replace('\n', '<br>')}</h3>
+      <span class="badge ${inc.badge}">Nivå ${inc.level}</span>
+    </div>
+    <div class="incident-body" id="inc-${i}">
+      <div class="step-label">Umiddelbare tiltak</div>
+      <div class="step-val">${inc.immediate}</div>
+      <div class="step-label">Varsling</div>
+      <div class="step-val">${inc.notify}</div>
+      <div class="step-label">Dokumentasjon</div>
+      <div class="step-val">${inc.doc}</div>
+    </div>`;
+  list.appendChild(div);
+});
+
+function toggleIncident(i) {
+  const body = document.getElementById('inc-' + i);
+  body.classList.toggle('open');
+}
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function v(id) { return document.getElementById(id).value.trim(); }
+
+function generateReport() {
+  const now = v('f-datetime') ? new Date(v('f-datetime')).toLocaleString('no-NO') : '(ikke oppgitt)';
+  const report = `
+HENDELSESRAPPORT — Øyleir 2026
+================================
+Dato og tid:          ${now}
+Sted:                 ${v('f-place') || '—'}
+Berørte person(er):   ${v('f-persons') || '—'}
+Type hendelse:        ${v('f-type') || '—'}
+Alvorlighetsnivå:     ${v('f-level') || '—'}
+
+Beskrivelse:
+${v('f-desc') || '—'}
+
+Tiltak gjennomført:
+${v('f-action') || '—'}
+
+Varslet (hvem/når):
+${v('f-notified') || '—'}
+
+Oppfølging nødvendig:
+${v('f-followup') || '—'}
+
+Signatur: ${v('f-sig') || '—'}
+================================
+Kopi sendes Anastasia.
+`.trim();
+
+  const box = document.getElementById('preview-box');
+  box.textContent = report;
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth' });
+  return report;
+}
+
+function copyReport() {
+  const report = generateReport();
+  const box = document.getElementById('preview-box');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(report).then(showCopySuccess).catch(() => fallbackCopy(box, report));
+  } else {
+    fallbackCopy(box, report);
+  }
+}
+
+function fallbackCopy(box, report) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = report;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) { showCopySuccess(); return; }
+  } catch(e) {}
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(box);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    alert('Teksten er markert — hold inne og velg «Kopier».');
+  } catch(e) {
+    alert('Kopier teksten manuelt fra boksen under.');
+  }
+}
+
+function showCopySuccess() {
+  const btn = document.getElementById('btn-copy');
+  const orig = btn.textContent;
+  btn.textContent = '✅ Kopiert!';
+  btn.style.background = '#276221';
+  setTimeout(() => { btn.textContent = orig; btn.style.background = '#C00000'; }, 2500);
+}
+
+function sendEmail() {
+  const report = generateReport();
+  const email = 'anastasiia.smyk@live.com';
+  const subject = encodeURIComponent('Hendelsesrapport – Øyleir 2026');
+  const body = encodeURIComponent(report);
+  window.location.href = 'mailto:' + email + '?subject=' + subject + '&body=' + body;
+}
+
+function clearForm() {
+  ['f-datetime','f-place','f-persons','f-type','f-level','f-desc','f-action','f-notified','f-followup','f-sig'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('preview-box').style.display = 'none';
+}
+
+// Set current datetime by default
+const now = new Date();
+now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+document.getElementById('f-datetime').value = now.toISOString().slice(0, 16);
+
+// Service Worker for offline use
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
