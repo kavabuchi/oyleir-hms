@@ -382,9 +382,20 @@ document.getElementById('f-datetime').value = now.toISOString().slice(0, 16);
 
 // Service Worker for offline use
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
+  const swCode = `
+    const CACHE = 'oyleir-v2';
+    self.addEventListener('install', e => { self.skipWaiting(); });
+    self.addEventListener('activate', e => { self.clients.claim(); });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request).then(res => {
+          return caches.open('oyleir-v2').then(c => { c.put(e.request, res.clone()); return res; });
+        }).catch(() => caches.match(e.request)))
+      );
+    });
+  `;
+  const blob = new Blob([swCode], {type: 'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
 }
 </script>
 </body>
