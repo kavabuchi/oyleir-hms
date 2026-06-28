@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Øyleir Vakt">
+<meta name="theme-color" content="#1F4E79">
+<link rel="manifest" href="manifest.json">
+<title>Vaktplan – Øyleir 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; font-size: 15px; }
+header { background: #1F4E79; color: white; padding: 16px; text-align: center; }
+header h1 { font-size: 20px; }
+header p { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+
+.status-bar { padding: 7px 14px; font-size: 12px; text-align: center; display: none; }
+.status-bar.show { display: block; }
+.status-bar.offline  { background: #FFF3CD; color: #856404; }
+.status-bar.syncing  { background: #D1ECF1; color: #0C5460; }
+.status-bar.synced   { background: #D4EDDA; color: #155724; }
+.status-bar.error    { background: #F8D7DA; color: #721C24; }
+
+nav { display: flex; background: #2E75B6; overflow-x: auto; }
+nav button { flex: 1 0 auto; background: none; border: none; color: rgba(255,255,255,0.7); padding: 13px 10px; font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+nav button.active { color: white; border-bottom-color: white; font-weight: bold; }
+
+.page { display: none; padding: 14px; }
+.page.active { display: block; }
+
+.card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.card-title { font-size: 13px; font-weight: bold; color: #1F4E79; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; }
+
+label { display: block; font-size: 12px; font-weight: bold; color: #444; margin-bottom: 4px; margin-top: 10px; }
+label:first-child { margin-top: 0; }
+input, select, textarea { width: 100%; border: 1.5px solid #ccc; border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: Arial, sans-serif; background: white; color: #1a1a1a; }
+input:focus, select:focus { outline: none; border-color: #2E75B6; }
+
+.btn { border: none; border-radius: 7px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+.btn-primary { background: #1F4E79; color: white; }
+.btn-gray    { background: #eee; color: #333; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+/* SHIFT TIMER */
+.timer-card { background: #1F4E79; color: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.timer-card .tc-label { font-size: 11px; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.timer-card .tc-shift { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+.timer-card .tc-person { font-size: 13px; opacity: 0.85; margin-bottom: 12px; }
+.timer-card .tc-countdown { font-size: 36px; font-weight: bold; letter-spacing: 2px; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.timer-card .tc-countdown.urgent { color: #FFC7CE; }
+.timer-card .tc-bar-wrap { background: rgba(255,255,255,0.2); border-radius: 4px; height: 6px; margin-bottom: 12px; }
+.timer-card .tc-bar { background: white; border-radius: 4px; height: 6px; transition: width 1s linear; }
+.timer-card .tc-bar.urgent { background: #FFC7CE; }
+.timer-card .tc-next { font-size: 12px; opacity: 0.75; }
+.no-shift { background: #f0f0f0; border-radius: 10px; padding: 16px; margin-bottom: 12px; text-align: center; color: #666; font-size: 14px; }
+
+/* VAKTPLAN */
+.day-block { background: white; border-radius: 10px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.day-header { background: #1F4E79; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.day-header h3 { font-size: 14px; font-weight: bold; color: white; }
+.day-header span { font-size: 11px; color: rgba(255,255,255,0.65); }
+.day-body { display: none; padding: 10px 12px; }
+.day-body.open { display: block; }
+.shift { border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.shift-early { background: #EBF2FA; border-left: 4px solid #2E75B6; }
+.shift-late  { background: #F3EBF9; border-left: 4px solid #7B0099; }
+.shift-label { font-size: 12px; font-weight: bold; }
+.shift-early .shift-label { color: #1F4E79; }
+.shift-late  .shift-label { color: #7B0099; }
+.shift-person { font-size: 14px; color: #1a1a1a; margin-top: 4px; font-weight: bold; }
+.shift-person.empty { color: #aaa; font-weight: normal; font-style: italic; }
+.edit-btn { background: #eee; border: none; border-radius: 6px; padding: 6px 12px; color: #444; font-size: 12px; cursor: pointer; }
+
+/* VOLUNTEERS */
+.vol-chip { display: inline-flex; align-items: center; background: #EBF2FA; border-radius: 20px; padding: 5px 12px; margin: 3px; font-size: 13px; color: #1F4E79; gap: 8px; border: 1px solid #BDD5EA; }
+.vol-chip button { background: none; border: none; color: #C00000; cursor: pointer; font-size: 15px; padding: 0; line-height: 1; }
+.vol-list { margin-bottom: 10px; min-height: 40px; }
+
+/* VISITORS */
+.visitor-row { background: white; border-radius: 8px; padding: 11px 13px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid #2E75B6; }
+.vrow-top { display: flex; justify-content: space-between; align-items: center; }
+.vrow-name { font-size: 14px; font-weight: bold; color: #1F4E79; }
+.vrow-count { background: #1F4E79; color: white; border-radius: 12px; padding: 2px 9px; font-size: 12px; font-weight: bold; }
+.vrow-details { font-size: 12px; color: #666; margin-top: 5px; }
+.del-btn { background: none; border: none; color: #C00000; cursor: pointer; font-size: 17px; padding: 0 2px; }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: white; border-radius: 16px 16px 0 0; padding: 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { color: #1F4E79; margin-bottom: 14px; font-size: 16px; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; }
+
+.empty   { text-align: center; color: #aaa; padding: 24px 10px; font-size: 14px; }
+.loading { text-align: center; color: #2E75B6; padding: 20px; font-size: 14px; }
+
+/* CHECKLIST */
+.checklist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f0f0; }
+.checklist-item:last-child { border-bottom: none; }
+.checklist-item input[type=checkbox] { width: 22px; height: 22px; margin-top: 1px; flex-shrink: 0; accent-color: #276221; cursor: pointer; }
+.checklist-item label { font-size: 14px; color: #1a1a1a; cursor: pointer; flex: 1; line-height: 1.4; }
+.checklist-item.checked label { text-decoration: line-through; color: #aaa; }
+.checklist-section { font-size: 11px; font-weight: bold; color: #2E75B6; text-transform: uppercase; letter-spacing: 0.5px; margin: 14px 0 6px; }
+.checklist-progress { height: 8px; background: #eee; border-radius: 4px; margin-bottom: 14px; overflow: hidden; }
+.checklist-progress-bar { height: 100%; background: #276221; border-radius: 4px; transition: width 0.3s; }
+.checklist-summary { font-size: 13px; color: #555; margin-bottom: 10px; }
+.sign-block { background: #f8f8f8; border-radius: 8px; padding: 14px; margin-top: 12px; }
+.sign-block label { font-size: 13px; font-weight: bold; color: #444; margin-bottom: 6px; display: block; }
+.completed-banner { background: #D4EDDA; color: #155724; border-radius: 8px; padding: 12px 14px; text-align: center; font-weight: bold; font-size: 14px; display: none; margin-bottom: 12px; }
+.completed-banner.show { display: block; }
+.handover-log { background: white; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; padding: 12px 14px; }
+.handover-log-title { font-size: 13px; font-weight: bold; color: #1F4E79; }
+.handover-log-meta  { font-size: 11px; color: #888; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<!-- PIN LOCK -->
+<div id="lock-screen" style="position:fixed;inset:0;background:#1F4E79;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:white;border-radius:16px;padding:30px;width:100%;max-width:320px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px">🔒</div>
+    <h2 style="color:#1F4E79;margin-bottom:6px">Øyleir 2026</h2>
+    <p style="color:#666;font-size:13px;margin-bottom:20px">Vaktplan · Kun for leirledere</p>
+    <input type="password" id="pin-input" placeholder="Passord..." style="width:100%;border:2px solid #ccc;border-radius:8px;padding:12px;font-size:18px;text-align:center;letter-spacing:4px;margin-bottom:12px">
+    <div id="pin-error" style="color:#C00000;font-size:13px;margin-bottom:8px;display:none">Feil passord. Prøv igjen.</div>
+    <button onclick="checkPin()" style="background:#1F4E79;color:white;border:none;border-radius:8px;padding:13px;width:100%;font-size:16px;font-weight:bold;cursor:pointer">Logg inn</button>
+  </div>
+</div>
+
+<script>
+function checkPin() {
+  const val = document.getElementById('pin-input').value;
+  if (val === '5267') {
+    document.getElementById('lock-screen').style.display = 'none';
+    sessionStorage.setItem('oyleir_auth', '1');
+  } else {
+    document.getElementById('pin-error').style.display = 'block';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+if (sessionStorage.getItem('oyleir_auth') === '1') document.getElementById('lock-screen').style.display = 'none';
+</script>
+
+<header>
+  <h1>🏕 Øyleir 2026 — Vaktplan</h1>
+  <p>Barneskjær/Fjærholmen · 18.–25. juli 2026</p>
+</header>
+<div class="status-bar" id="status-bar"></div>
+
+<nav>
+  <button class="active" onclick="showPage('vakt', this)">🔥 Bålvakt</button>
+  <button onclick="showPage('volunteers', this)">👥 Frivillige</button>
+  <button onclick="showPage('visitors', this)">📋 Besøk</button>
+  <button onclick="showPage('checklist', this)">✅ Sjekkliste</button>
+</nav>
+
+<div class="page active" id="page-vakt">
+  <div style="height:12px"></div>
+  <div id="timer-section"></div>
+  <div class="card">
+    <div class="card-title">🔥 Bålvaktplan · 7 netter</div>
+    <div style="font-size:12px;color:#666">To skift per natt: <b>23:00–03:00</b> og <b>03:00–07:00</b></div>
+  </div>
+  <div id="vakt-days"><div class="loading">⏳ Laster...</div></div>
+</div>
+
+<div class="page" id="page-volunteers">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">👥 Frivillige / Vakter</div>
+    <div class="vol-list" id="vol-list"><div class="loading">⏳ Laster...</div></div>
+    <label>Legg til frivillig</label>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="vol-input" placeholder="Navn..." style="flex:1;margin:0">
+      <button class="btn btn-primary" style="width:auto;padding:9px 18px;margin:0" onclick="addVolunteer()">+</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-visitors">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">📋 Besøkstabell</div>
+    <button class="btn btn-primary" style="margin-top:0" onclick="openVisitorModal()">+ Registrer besøk</button>
+  </div>
+  <div id="visitor-list"><div class="loading">⏳ Laster...</div></div>
+</div>
+
+<!-- CHECKLIST PAGE -->
+<div class="page" id="page-checklist">
+  <div style="height:12px"></div>
+  <div class="card">
+    <div class="card-title">✅ Sjekkliste ved vaktoverlevering</div>
+    <div class="completed-banner" id="checklist-done">🎉 Alle punkter godkjent — vakten er overlevert!</div>
+    <div class="checklist-summary" id="checklist-summary">0 av 0 fullført</div>
+    <div class="checklist-progress"><div class="checklist-progress-bar" id="checklist-bar" style="width:0%"></div></div>
+
+    <div class="checklist-section">🧒 Deltakere</div>
+    <div id="cl-items"></div>
+
+    <div class="sign-block">
+      <label>Navn på avtroppende vakt</label>
+      <input type="text" id="cl-outgoing" placeholder="Navn...">
+      <label style="margin-top:10px">Navn på påtroppende vakt</label>
+      <input type="text" id="cl-incoming" placeholder="Navn...">
+      <button class="btn btn-primary" style="margin-top:12px" onclick="submitHandover()">✅ Bekreft overlevering</button>
+    </div>
+  </div>
+
+  <div class="card" id="handover-history-card">
+    <div class="card-title">📜 Historikk</div>
+    <div id="handover-history"><div class="loading">⏳ Laster...</div></div>
+  </div>
+</div>
+
+<!-- MODAL: SHIFT -->
+<div class="modal-bg" id="modal-shift">
+  <div class="modal">
+    <h3 id="modal-shift-title">Rediger vakt</h3>
+    <label>Frivillig</label>
+    <select id="modal-shift-person"></select>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal('modal-shift')">Avbryt</button>
+      <button class="btn btn-primary" onclick="saveShift()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISITOR -->
+<div class="modal-bg" id="modal-visitor">
+  <div class="modal">
+    <h3>Registrer besøk</h3>
+    <label>Navn / Gruppe</label>
+    <input type="text" id="v-name" placeholder="Navn eller gruppe...">
+    <label>Antall personer</label>
+    <input type="number" id="v-count" min="1" value="1">
+    <label>Dag</label>
+    <select id="v-day">
+      <option>18. juli (fredag)</option>
+      <option>19. juli (lørdag)</option>
+      <option>20. juli (søndag)</option>
+      <option>21. juli (mandag)</option>
+      <option>22. juli (tirsdag)</option>
+      <option>23. juli (onsdag)</option>
+      <option>24. juli (torsdag)</option>
+      <option>25. juli (fredag)</option>
+    </select>
+    <label>Tid inn</label>
+    <input type="time" id="v-in" value="12:00">
+    <label>Tid ut</label>
+    <input type="time" id="v-out" value="16:00">
+    <label>Merknad (valgfritt)</label>
+    <input type="text" id="v-note" placeholder="F.eks. Rotary, foreldre...">
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal('modal-visitor')">Avbryt</button>
+      <button class="btn btn-primary" onclick="saveVisitor()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, onSnapshot, deleteDoc, query, orderBy, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCx1oG1jf0p17SGZ9S0_RF2CC5hT48ZsK0",
+  authDomain: "oyleir-hms.firebaseapp.com",
+  projectId: "oyleir-hms",
+  storageBucket: "oyleir-hms.firebasestorage.app",
+  messagingSenderId: "1077107651327",
+  appId: "1:1077107651327:web:ab7c93925dd6798881d2ca"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ---- OFFLINE/ONLINE STATUS ----
+function showStatus(msg, type, autohide = true) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.className = 'status-bar show ' + type;
+  if (autohide) setTimeout(() => bar.classList.remove('show'), 3000);
+}
+
+window.addEventListener('online',  () => showStatus('✓ Tilkoblet igjen', 'synced'));
+window.addEventListener('offline', () => showStatus('📵 Frakoblet — viser lokalt lagret plan', 'offline', false));
+if (!navigator.onLine) showStatus('📵 Frakoblet — viser lokalt lagret plan', 'offline', false);
+
+// ---- LOCAL STORAGE CACHE (for offline fallback) ----
+const LS_SHIFTS = 'oyleir_shifts';
+const LS_VOLS   = 'oyleir_volunteers';
+
+function cacheShifts(data)  { localStorage.setItem(LS_SHIFTS, JSON.stringify(data)); }
+function cacheVols(data)    { localStorage.setItem(LS_VOLS, JSON.stringify(data)); }
+function getCachedShifts()  { try { return JSON.parse(localStorage.getItem(LS_SHIFTS) || '{}'); } catch { return {}; } }
+function getCachedVols()    { try { return JSON.parse(localStorage.getItem(LS_VOLS) || '[]'); } catch { return []; } }
+
+// ---- DAYS CONFIG ----
+const DAYS = [
+  { label: 'Natt 18→19. juli', key: 'd0', date: '2026-07-18' },
+  { label: 'Natt 19→20. juli', key: 'd1', date: '2026-07-19' },
+  { label: 'Natt 20→21. juli', key: 'd2', date: '2026-07-20' },
+  { label: 'Natt 21→22. juli', key: 'd3', date: '2026-07-21' },
+  { label: 'Natt 22→23. juli', key: 'd4', date: '2026-07-22' },
+  { label: 'Natt 23→24. juli', key: 'd5', date: '2026-07-23' },
+  { label: 'Natt 24→25. juli', key: 'd6', date: '2026-07-24' },
+];
+
+// ---- SHIFT TIMER ----
+let timerInterval = null;
+
+function getCurrentShift(shifts) {
+  const now = new Date();
+  const h = now.getHours();
+  const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+  for (const day of DAYS) {
+    // Early shift: 23:00 on day.date → 03:00 next day
+    const earlyStart = new Date(day.date + 'T23:00:00');
+    const earlyEnd   = new Date(day.date + 'T23:00:00');
+    earlyEnd.setDate(earlyEnd.getDate() + 1);
+    earlyEnd.setHours(3, 0, 0, 0);
+
+    // Late shift: 03:00 → 07:00 next day
+    const lateStart  = new Date(day.date + 'T23:00:00');
+    lateStart.setDate(lateStart.getDate() + 1);
+    lateStart.setHours(3, 0, 0, 0);
+    const lateEnd    = new Date(day.date + 'T23:00:00');
+    lateEnd.setDate(lateEnd.getDate() + 1);
+    lateEnd.setHours(7, 0, 0, 0);
+
+    if (now >= earlyStart && now < earlyEnd) {
+      return { label: day.label + ' · 23:00–03:00', start: earlyStart, end: earlyEnd, person: shifts[day.key + '_early'] || '' };
+    }
+    if (now >= lateStart && now < lateEnd) {
+      return { label: day.label + ' · 03:00–07:00', start: lateStart, end: lateEnd, person: shifts[day.key + '_late'] || '' };
+    }
+  }
+  return null;
+}
+
+function getNextShift(shifts) {
+  const now = new Date();
+  for (const day of DAYS) {
+    const earlyStart = new Date(day.date + 'T23:00:00');
+    const lateStart  = new Date(earlyStart);
+    lateStart.setDate(lateStart.getDate() + 1);
+    lateStart.setHours(3, 0, 0, 0);
+
+    if (earlyStart > now) return { label: day.label + ' · 23:00–03:00', start: earlyStart, person: shifts[day.key + '_early'] || '' };
+    if (lateStart > now)  return { label: day.label + ' · 03:00–07:00', start: lateStart, person: shifts[day.key + '_late'] || '' };
+  }
+  return null;
+}
+
+function renderTimer(shifts) {
+  const section = document.getElementById('timer-section');
+  const current = getCurrentShift(shifts);
+
+  if (current) {
+    const totalMs = current.end - current.start;
+
+    function tick() {
+      const now = new Date();
+      const remainMs = current.end - now;
+      if (remainMs <= 0) { renderTimer(shifts); return; }
+
+      const h = Math.floor(remainMs / 3600000);
+      const m = Math.floor((remainMs % 3600000) / 60000);
+      const s = Math.floor((remainMs % 60000) / 1000);
+      const pct = Math.max(0, (remainMs / totalMs) * 100);
+      const urgent = remainMs < 30 * 60 * 1000; // < 30 min
+
+      section.innerHTML = `
+        <div class="timer-card">
+          <div class="tc-label">Aktiv vakt nå</div>
+          <div class="tc-shift">${current.label}</div>
+          <div class="tc-person">${current.person ? '👤 ' + current.person : '⚠️ Ingen tildelt'}</div>
+          <div class="tc-countdown ${urgent ? 'urgent' : ''}">${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}</div>
+          <div class="tc-bar-wrap"><div class="tc-bar ${urgent ? 'urgent' : ''}" style="width:${pct.toFixed(1)}%"></div></div>
+          <div class="tc-next">Gjenstående tid av vakten</div>
+        </div>`;
+    }
+
+    if (timerInterval) clearInterval(timerInterval);
+    tick();
+    timerInterval = setInterval(tick, 1000);
+  } else {
+    const next = getNextShift(shifts);
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+
+    if (next) {
+      const diffMs = next.start - new Date();
+      const h = Math.floor(diffMs / 3600000);
+      const m = Math.floor((diffMs % 3600000) / 60000);
+      section.innerHTML = `
+        <div class="no-shift">
+          Ingen aktiv vakt akkurat nå<br>
+          <span style="font-size:12px">Neste: <b>${next.label}</b>${next.person ? ' · ' + next.person : ''}<br>om ${h}t ${m}min</span>
+        </div>`;
+    } else {
+      section.innerHTML = '<div class="no-shift">Alle vakter er fullført 🎉</div>';
+    }
+  }
+}
+
+// ---- VOLUNTEERS (realtime) ----
+let volunteers = [];
+onSnapshot(collection(db, 'volunteers'), snap => {
+  volunteers = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name));
+  cacheVols(volunteers.map(v => ({ id: v.id, name: v.name })));
+  renderVolunteers();
+}, () => {
+  // Offline fallback
+  volunteers = getCachedVols();
+  renderVolunteers();
+});
+
+function renderVolunteers() {
+  const list = document.getElementById('vol-list');
+  if (!volunteers.length) { list.innerHTML = '<div class="empty">Ingen frivillige ennå</div>'; return; }
+  list.innerHTML = volunteers.map(v =>
+    `<span class="vol-chip">${v.name}<button onclick="removeVolunteer('${v.id}')">×</button></span>`
+  ).join('');
+}
+
+window.addVolunteer = async () => {
+  const input = document.getElementById('vol-input');
+  const name = input.value.trim();
+  if (!name) return;
+  if (volunteers.find(v => v.name === name)) { input.value=''; return; }
+  try {
+    await addDoc(collection(db, 'volunteers'), { name });
+    showStatus('Frivillig lagret', 'synced');
+  } catch { showStatus('Kan ikke lagre — ingen internett', 'error'); }
+  input.value = '';
+};
+
+window.removeVolunteer = async (id) => {
+  if (!confirm('Fjern denne frivillige?')) return;
+  try {
+    await deleteDoc(doc(db, 'volunteers', id));
+    showStatus('Fjernet', 'synced');
+  } catch { showStatus('Kan ikke slette — ingen internett', 'error'); }
+};
+
+document.getElementById('vol-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); window.addVolunteer(); }
+});
+
+// ---- SHIFTS (realtime + offline cache) ----
+let shifts = {};
+onSnapshot(doc(db, 'data', 'shifts'), snap => {
+  shifts = snap.exists() ? snap.data() : {};
+  cacheShifts(shifts);
+  renderVakt();
+  renderTimer(shifts);
+}, () => {
+  // Offline: use cache
+  shifts = getCachedShifts();
+  renderVakt();
+  renderTimer(shifts);
+});
+
+function renderVakt() {
+  const container = document.getElementById('vakt-days');
+  container.innerHTML = '';
+  DAYS.forEach((day, i) => {
+    const ek = day.key+'_early', lk = day.key+'_late';
+    const ep = shifts[ek]||'', lp = shifts[lk]||'';
+    const div = document.createElement('div');
+    div.className = 'day-block';
+    div.innerHTML = `
+      <div class="day-header" onclick="toggleDay('db${i}')">
+        <h3>🔥 ${day.label}</h3>
+        <span>${ep&&lp?'✓ Begge tildelt':ep||lp?'½ En tildelt':'Ikke tildelt'}</span>
+      </div>
+      <div class="day-body" id="db${i}">
+        <div class="shift shift-early">
+          <div>
+            <div class="shift-label">🌙 Skift 1 · 23:00–03:00</div>
+            <div class="shift-person ${ep?'':'empty'}">${ep||'Ingen tildelt'}</div>
+          </div>
+          <button class="edit-btn" onclick="openShiftModal('${ek}','${day.label} · 23–03')">Endre</button>
+        </div>
+        <div class="shift shift-late">
+          <div>
+            <div class="shift-label">🌅 Skift 2 · 03:00–07:00</div>
+            <div class="shift-person ${lp?'':'empty'}">${lp||'Ingen tildelt'}</div>
+          </div>
+          <button class="edit-btn" onclick="openShiftModal('${lk}','${day.label} · 03–07')">Endre</button>
+        </div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+window.toggleDay = id => document.getElementById(id).classList.toggle('open');
+
+let currentShiftKey = '';
+window.openShiftModal = (key, title) => {
+  currentShiftKey = key;
+  document.getElementById('modal-shift-title').textContent = title;
+  const sel = document.getElementById('modal-shift-person');
+  sel.innerHTML = '<option value="">— Ingen tildelt —</option>';
+  if (!volunteers.length) {
+    sel.innerHTML = '<option value="">— Legg til frivillige først —</option>';
+  } else {
+    volunteers.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.name; o.textContent = v.name;
+      if (shifts[key] === v.name) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  document.getElementById('modal-shift').classList.add('open');
+};
+
+window.saveShift = async () => {
+  const val = document.getElementById('modal-shift-person').value;
+  const updated = {...shifts};
+  if (val) updated[currentShiftKey] = val;
+  else delete updated[currentShiftKey];
+  try {
+    await setDoc(doc(db, 'data', 'shifts'), updated);
+    showStatus('Vakt lagret', 'synced');
+  } catch { showStatus('Kan ikke lagre — ingen internett', 'error'); }
+  closeModal('modal-shift');
+};
+
+// ---- VISITORS (realtime) ----
+onSnapshot(collection(db, 'visitors'), snap => {
+  const visitors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  renderVisitors(visitors);
+}, () => {
+  document.getElementById('visitor-list').innerHTML = '<div class="empty">📵 Ingen tilgang til besøksdata frakoblet</div>';
+});
+
+function renderVisitors(visitors) {
+  const list = document.getElementById('visitor-list');
+  if (!visitors.length) { list.innerHTML = '<div class="empty">Ingen besøk registrert ennå</div>'; return; }
+  list.innerHTML = visitors.map(v => `
+    <div class="visitor-row">
+      <div class="vrow-top">
+        <span class="vrow-name">${v.name}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="vrow-count">${v.count} pers.</span>
+          <button class="del-btn" onclick="removeVisitor('${v.id}')">🗑</button>
+        </span>
+      </div>
+      <div class="vrow-details">📅 ${v.day} · ⏰ ${v.inn}–${v.out}${v.note?' · '+v.note:''}</div>
+    </div>`).join('');
+}
+
+window.openVisitorModal = () => {
+  ['v-name','v-note'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('v-count').value=1;
+  document.getElementById('v-day').selectedIndex=0;
+  document.getElementById('v-in').value='12:00';
+  document.getElementById('v-out').value='16:00';
+  document.getElementById('modal-visitor').classList.add('open');
+};
+
+window.saveVisitor = async () => {
+  const name = document.getElementById('v-name').value.trim();
+  if (!name) { alert('Fyll inn navn'); return; }
+  try {
+    await addDoc(collection(db, 'visitors'), {
+      name,
+      count: document.getElementById('v-count').value||1,
+      day:   document.getElementById('v-day').value,
+      inn:   document.getElementById('v-in').value,
+      out:   document.getElementById('v-out').value,
+      note:  document.getElementById('v-note').value.trim()
+    });
+    showStatus('Besøk lagret', 'synced');
+  } catch { showStatus('Kan ikke lagre — ingen internett', 'error'); }
+  closeModal('modal-visitor');
+};
+
+window.removeVisitor = async (id) => {
+  if (!confirm('Fjern dette besøket?')) return;
+  try {
+    await deleteDoc(doc(db, 'visitors', id));
+    showStatus('Fjernet', 'synced');
+  } catch { showStatus('Kan ikke slette — ingen internett', 'error'); }
+};
+
+// ---- UTILS ----
+window.closeModal = id => document.getElementById(id).classList.remove('open');
+window.showPage = (name, btn) => {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+};
+document.querySelectorAll('.modal-bg').forEach(bg => {
+  bg.addEventListener('click', e => { if(e.target===bg) bg.classList.remove('open'); });
+});
+
+// ============================================================
+// CHECKLIST
+// ============================================================
+const CHECKLIST_ITEMS = [
+  { id:'c1',  section:'🧒 Deltakere',       text:'Alle deltakere er talt og til stede' },
+  { id:'c2',  section:'🧒 Deltakere',       text:'Kjenner til deltakere med spesielle behov eller allergier' },
+  { id:'c3',  section:'🧒 Deltakere',       text:'Ingen deltaker er alene ute i mørket' },
+  { id:'c4',  section:'🌊 Vann og båter',   text:'Alle båter er trukket opp og festet' },
+  { id:'c5',  section:'🌊 Vann og båter',   text:'Redningsbøyer er på plass ved brygga' },
+  { id:'c6',  section:'🌊 Vann og båter',   text:'Ingen deltaker er ved vannet uten tilsyn' },
+  { id:'c7',  section:'🔥 Bål og brann',    text:'Bålet er slukket eller under oppsikt' },
+  { id:'c8',  section:'🔥 Bål og brann',    text:'Brannslukker/bøtte med vann er innen rekkevidde' },
+  { id:'c9',  section:'🔥 Bål og brann',    text:'Ingen åpen ild nær telt eller bygninger' },
+  { id:'c10', section:'🏕 Leiren',          text:'Alle telt og bygninger er sjekket' },
+  { id:'c11', section:'🏕 Leiren',          text:'Førstehjelpssettet er tilgjengelig og komplett' },
+  { id:'c12', section:'🏕 Leiren',          text:'Nødnummer og varslingsliste er lett tilgjengelig' },
+  { id:'c13', section:'🤝 Overlevering',    text:'Avtroppende vakt har informert om eventuelle hendelser' },
+  { id:'c14', section:'🤝 Overlevering',    text:'Påtroppende vakt kjenner til spesielle instrukser for natten' },
+];
+
+let checkStates = {};
+
+function renderChecklist() {
+  const container = document.getElementById('cl-items');
+  let lastSection = '';
+  let html = '';
+  CHECKLIST_ITEMS.forEach(item => {
+    if (item.section !== lastSection) {
+      if (lastSection) html += '</div>';
+      html += `<div class="checklist-section">${item.section}</div><div>`;
+      lastSection = item.section;
+    }
+    const checked = checkStates[item.id] || false;
+    html += `
+      <div class="checklist-item ${checked?'checked':''}" id="ci-${item.id}">
+        <input type="checkbox" id="chk-${item.id}" ${checked?'checked':''} onchange="toggleCheck('${item.id}')">
+        <label for="chk-${item.id}">${item.text}</label>
+      </div>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  updateProgress();
+}
+
+window.toggleCheck = (id) => {
+  checkStates[id] = !checkStates[id];
+  const row = document.getElementById('ci-'+id);
+  row.classList.toggle('checked', checkStates[id]);
+  updateProgress();
+};
+
+function updateProgress() {
+  const total   = CHECKLIST_ITEMS.length;
+  const done    = Object.values(checkStates).filter(Boolean).length;
+  const pct     = total ? Math.round((done/total)*100) : 0;
+  document.getElementById('checklist-bar').style.width = pct + '%';
+  document.getElementById('checklist-summary').textContent = `${done} av ${total} fullført (${pct}%)`;
+  document.getElementById('checklist-done').classList.toggle('show', done === total);
+}
+
+window.submitHandover = async () => {
+  const outgoing = document.getElementById('cl-outgoing').value.trim();
+  const incoming = document.getElementById('cl-incoming').value.trim();
+  const done = Object.values(checkStates).filter(Boolean).length;
+  const total = CHECKLIST_ITEMS.length;
+
+  if (!outgoing || !incoming) { alert('Fyll inn begge navn'); return; }
+  if (done < total) {
+    if (!confirm(`${total-done} punkt(er) er ikke fullført. Vil du likevel bekrefte?`)) return;
+  }
+
+  const record = {
+    outgoing, incoming,
+    completedItems: done,
+    totalItems: total,
+    timestamp: new Date().toISOString(),
+    items: CHECKLIST_ITEMS.map(i => ({ text: i.text, checked: checkStates[i.id]||false }))
+  };
+
+  try {
+    await addDoc(collection(db, 'handovers'), { ...record, createdAt: serverTimestamp() });
+    showStatus('✓ Overlevering bekreftet og lagret', 'synced');
+  } catch {
+    // Save locally if offline
+    const local = JSON.parse(localStorage.getItem('oyleir_handovers')||'[]');
+    local.push(record);
+    localStorage.setItem('oyleir_handovers', JSON.stringify(local));
+    showStatus('📵 Lagret lokalt', 'offline');
+  }
+
+  // Reset checklist
+  checkStates = {};
+  document.getElementById('cl-outgoing').value = '';
+  document.getElementById('cl-incoming').value = '';
+  renderChecklist();
+};
+
+// Handover history
+onSnapshot(collection(db, 'handovers'), snap => {
+  const records = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a,b) => (b.timestamp||'').localeCompare(a.timestamp||''));
+  renderHandoverHistory(records);
+}, () => {
+  const local = JSON.parse(localStorage.getItem('oyleir_handovers')||'[]');
+  renderHandoverHistory(local);
+});
+
+function renderHandoverHistory(records) {
+  const el = document.getElementById('handover-history');
+  if (!records.length) { el.innerHTML = '<div class="empty">Ingen overleveringer ennå</div>'; return; }
+  el.innerHTML = records.slice(0,10).map(r => {
+    const dt = r.timestamp ? new Date(r.timestamp).toLocaleString('no-NO') : '—';
+    const pct = r.totalItems ? Math.round((r.completedItems/r.totalItems)*100) : 0;
+    const color = pct===100 ? '#276221' : pct>=70 ? '#9C6500' : '#9C0006';
+    return `<div class="handover-log">
+      <div class="handover-log-title">🤝 ${r.outgoing} → ${r.incoming}</div>
+      <div class="handover-log-meta">${dt} · <span style="color:${color};font-weight:bold">${r.completedItems}/${r.totalItems} (${pct}%)</span></div>
+    </div>`;
+  }).join('');
+}
+
+// Init checklist on load
+renderChecklist();
+
+// ---- SERVICE WORKER ----
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>

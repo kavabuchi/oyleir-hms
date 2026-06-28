@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F4E79">
+<link rel="manifest" href="manifest.json">
+<title>Deltakere – Øyleir 2026</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; font-size: 15px; }
+header { background: #1F4E79; color: white; padding: 16px; text-align: center; }
+header h1 { font-size: 20px; }
+header p  { font-size: 12px; opacity: 0.8; margin-top: 3px; }
+
+.status-bar { padding: 7px 14px; font-size: 12px; text-align: center; display: none; }
+.status-bar.show { display: block; }
+.status-bar.offline { background: #FFF3CD; color: #856404; }
+.status-bar.synced  { background: #D4EDDA; color: #155724; }
+.status-bar.error   { background: #F8D7DA; color: #721C24; }
+
+nav { display: flex; background: #2E75B6; overflow-x: auto; }
+nav button { flex: 1 0 auto; background: none; border: none; color: rgba(255,255,255,0.7); padding: 13px 10px; font-size: 13px; cursor: pointer; white-space: nowrap; border-bottom: 3px solid transparent; }
+nav button.active { color: white; border-bottom-color: white; font-weight: bold; }
+
+.page { display: none; padding: 14px; }
+.page.active { display: block; }
+
+/* STATS BAR */
+.stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+.stat-box { background: white; border-radius: 10px; padding: 12px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.stat-num  { font-size: 26px; font-weight: bold; color: #1F4E79; }
+.stat-lbl  { font-size: 11px; color: #666; margin-top: 2px; }
+.stat-box.present .stat-num { color: #276221; }
+.stat-box.absent  .stat-num { color: #C00000; }
+
+/* ROLL CALL PROGRESS */
+.roll-progress { height: 10px; background: #eee; border-radius: 5px; margin-bottom: 8px; overflow: hidden; }
+.roll-bar { height: 100%; border-radius: 5px; transition: width 0.3s; background: #276221; }
+.roll-summary { font-size: 12px; color: #666; margin-bottom: 14px; }
+
+/* SEARCH */
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-wrap input { padding-left: 36px; }
+.search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #999; font-size: 16px; pointer-events: none; }
+.filter-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-btn { border: 1.5px solid #ccc; background: white; border-radius: 20px; padding: 5px 12px; font-size: 12px; cursor: pointer; color: #444; }
+.filter-btn.active { background: #1F4E79; color: white; border-color: #1F4E79; }
+
+/* PARTICIPANT CARDS */
+.participant-card { background: white; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; transition: box-shadow 0.15s; }
+.participant-card.present { border-left: 5px solid #276221; }
+.participant-card.absent  { border-left: 5px solid #C00000; }
+.participant-card.unknown { border-left: 5px solid #ccc; }
+
+.pc-header { display: flex; align-items: center; padding: 12px 14px; gap: 12px; cursor: pointer; }
+.pc-avatar { width: 40px; height: 40px; border-radius: 50%; background: #EBF2FA; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.pc-avatar.present { background: #C6EFCE; }
+.pc-avatar.absent  { background: #FFC7CE; }
+.pc-info { flex: 1; min-width: 0; }
+.pc-name { font-size: 15px; font-weight: bold; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-group { font-size: 12px; color: #888; margin-top: 1px; }
+.pc-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+.pc-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+.badge-allergy { background: #FFC7CE; color: #9C0006; }
+.badge-medical { background: #FFEB9C; color: #9C6500; }
+.badge-diet    { background: #D4EDDA; color: #155724; }
+.pc-status-btn { border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+.pc-status-btn.present { background: #C6EFCE; color: #276221; }
+.pc-status-btn.absent  { background: #FFC7CE; color: #9C0006; }
+.pc-status-btn.unknown { background: #eee; color: #666; }
+
+.pc-body { display: none; padding: 0 14px 14px; border-top: 1px solid #f0f0f0; }
+.pc-body.open { display: block; }
+.pc-detail-row { display: flex; gap: 6px; margin-top: 8px; font-size: 13px; }
+.pc-detail-label { font-weight: bold; color: #666; min-width: 100px; }
+.pc-detail-val   { color: #1a1a1a; flex: 1; }
+.pc-note { background: #FFFDE7; border-left: 3px solid #FFEB9C; border-radius: 0 6px 6px 0; padding: 8px 10px; font-size: 13px; margin-top: 8px; color: #5D4037; }
+
+/* BUTTONS */
+.btn { border: none; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+.btn-primary { background: #1F4E79; color: white; }
+.btn-success { background: #276221; color: white; }
+.btn-danger  { background: #C00000; color: white; }
+.btn-gray    { background: #eee; color: #333; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+.btn-sm { padding: 7px 12px; font-size: 13px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+
+label { display: block; font-size: 12px; font-weight: bold; color: #444; margin-bottom: 4px; margin-top: 10px; }
+label:first-child { margin-top: 0; }
+input, select, textarea { width: 100%; border: 1.5px solid #ccc; border-radius: 6px; padding: 9px 11px; font-size: 14px; font-family: Arial, sans-serif; background: white; }
+
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-bg.open { display: flex; }
+.modal { background: white; border-radius: 16px 16px 0 0; padding: 20px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+.modal h3 { color: #1F4E79; margin-bottom: 14px; font-size: 16px; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; }
+
+.section-title { font-size: 17px; color: #1F4E79; border-bottom: 2px solid #2E75B6; padding-bottom: 6px; margin-bottom: 14px; }
+.empty   { text-align: center; color: #aaa; padding: 32px 16px; font-size: 14px; }
+.loading { text-align: center; color: #2E75B6; padding: 24px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏕 Øyleir 2026 — Deltakere</h1>
+  <p>Barneskjær/Fjærholmen · 18.–25. juli 2026</p>
+</header>
+<div class="status-bar" id="status-bar"></div>
+
+<nav>
+  <button class="active" onclick="showPage('rollcall',this)">📣 Appell</button>
+  <button onclick="showPage('list',this)">👥 Alle</button>
+  <button onclick="showPage('medical',this)">🏥 Medisinsk</button>
+</nav>
+
+<!-- PAGE: ROLL CALL -->
+<div class="page active" id="page-rollcall">
+  <div style="height:12px"></div>
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-num" id="st-total">—</div>
+      <div class="stat-lbl">Totalt</div>
+    </div>
+    <div class="stat-box present">
+      <div class="stat-num" id="st-present">—</div>
+      <div class="stat-lbl">Til stede</div>
+    </div>
+    <div class="stat-box absent">
+      <div class="stat-num" id="st-absent">—</div>
+      <div class="stat-lbl">Mangler</div>
+    </div>
+  </div>
+
+  <div class="roll-progress"><div class="roll-bar" id="roll-bar" style="width:0%"></div></div>
+  <div class="roll-summary" id="roll-summary">Laster...</div>
+
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="btn btn-success btn-sm" style="flex:1" onclick="markAll(true)">✅ Alle til stede</button>
+    <button class="btn btn-gray btn-sm"    style="flex:1" onclick="markAll(false)">↩️ Nullstill appell</button>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('all',this)">Alle</button>
+    <button class="filter-btn" onclick="setFilter('unknown',this)">Ikke sjekket</button>
+    <button class="filter-btn" onclick="setFilter('absent',this)">Mangler</button>
+  </div>
+
+  <div id="rollcall-list"><div class="loading">⏳ Laster...</div></div>
+
+  <button class="btn btn-primary" onclick="saveRollCall()" style="margin-top:4px">💾 Lagre appell</button>
+</div>
+
+<!-- PAGE: ALL PARTICIPANTS -->
+<div class="page" id="page-list">
+  <div style="height:12px"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <h2 class="section-title" style="border:none;margin:0">Deltakere</h2>
+    <button onclick="openAddModal()" style="background:#1F4E79;color:white;border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:bold;cursor:pointer">+ Legg til</button>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" placeholder="Søk etter navn..." oninput="renderList()">
+  </div>
+  <div id="participant-list"><div class="loading">⏳ Laster...</div></div>
+</div>
+
+<!-- PAGE: MEDICAL -->
+<div class="page" id="page-medical">
+  <div style="height:12px"></div>
+  <h2 class="section-title">🏥 Medisinsk info</h2>
+  <p style="font-size:13px;color:#666;margin-bottom:12px">Kun deltakere med registrert allergi, medisin eller diett vises her.</p>
+  <div id="medical-list"><div class="loading">⏳ Laster...</div></div>
+</div>
+
+<!-- MODAL: ADD/EDIT PARTICIPANT -->
+<div class="modal-bg" id="modal-add">
+  <div class="modal">
+    <h3 id="modal-add-title">Legg til deltaker</h3>
+    <input type="hidden" id="edit-id">
+    <label>Fullt navn *</label>
+    <input type="text" id="p-name" placeholder="Fornavn Etternavn">
+    <label>Gruppe / Lag</label>
+    <input type="text" id="p-group" placeholder="F.eks. Gruppe A, Speider...">
+    <label>Alder</label>
+    <input type="number" id="p-age" min="5" max="18" placeholder="F.eks. 12">
+    <label>Allergi</label>
+    <input type="text" id="p-allergy" placeholder="F.eks. Nøtter, melk — eller tom">
+    <label>Medisin / medisinske behov</label>
+    <input type="text" id="p-medical" placeholder="F.eks. EpiPen, astmainhalator — eller tom">
+    <label>Diett / matpreferanser</label>
+    <input type="text" id="p-diet" placeholder="F.eks. Vegetar, halal — eller tom">
+    <label>Notat (foresatte, kontakt, annet)</label>
+    <textarea id="p-note" rows="2" placeholder="Fritt felt..."></textarea>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-gray" onclick="closeModal()">Avbryt</button>
+      <button class="btn btn-primary" onclick="saveParticipant()">Lagre</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, addDoc, doc, setDoc, deleteDoc, onSnapshot, orderBy, query, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCx1oG1jf0p17SGZ9S0_RF2CC5hT48ZsK0",
+  authDomain: "oyleir-hms.firebaseapp.com",
+  projectId: "oyleir-hms",
+  storageBucket: "oyleir-hms.firebasestorage.app",
+  messagingSenderId: "1077107651327",
+  appId: "1:1077107651327:web:ab7c93925dd6798881d2ca"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ---- STATUS ----
+function showStatus(msg, type, auto = true) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.className = 'status-bar show ' + type;
+  if (auto) setTimeout(() => bar.classList.remove('show'), 3000);
+}
+window.addEventListener('offline', () => showStatus('📵 Frakoblet', 'offline', false));
+window.addEventListener('online',  () => showStatus('✓ Tilkoblet', 'synced'));
+if (!navigator.onLine) showStatus('📵 Frakoblet', 'offline', false);
+
+// ---- DATA ----
+let participants = [];
+// attendance: { [id]: 'present' | 'absent' | 'unknown' }
+let attendance = JSON.parse(localStorage.getItem('oyleir_attendance') || '{}');
+let currentFilter = 'all';
+let editingId = null;
+
+const LS_CACHE = 'oyleir_participants';
+
+onSnapshot(
+  query(collection(db, 'participants'), orderBy('name')),
+  snap => {
+    participants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    localStorage.setItem(LS_CACHE, JSON.stringify(participants));
+    renderAll();
+  },
+  () => {
+    participants = JSON.parse(localStorage.getItem(LS_CACHE) || '[]');
+    renderAll();
+  }
+);
+
+function renderAll() {
+  renderRollCall();
+  renderList();
+  renderMedical();
+  updateStats();
+}
+
+// ---- STATS ----
+function updateStats() {
+  const total   = participants.length;
+  const present = participants.filter(p => attendance[p.id] === 'present').length;
+  const absent  = participants.filter(p => attendance[p.id] === 'absent').length;
+  document.getElementById('st-total').textContent   = total;
+  document.getElementById('st-present').textContent = present;
+  document.getElementById('st-absent').textContent  = absent;
+  const pct = total ? Math.round((present/total)*100) : 0;
+  document.getElementById('roll-bar').style.width   = pct + '%';
+  document.getElementById('roll-summary').textContent = `${present} av ${total} til stede (${pct}%)`;
+}
+
+// ---- ROLL CALL ----
+function renderRollCall() {
+  const list = document.getElementById('rollcall-list');
+  let filtered = participants;
+  if (currentFilter === 'unknown') filtered = participants.filter(p => !attendance[p.id] || attendance[p.id] === 'unknown');
+  if (currentFilter === 'absent')  filtered = participants.filter(p => attendance[p.id] === 'absent');
+
+  if (!filtered.length) {
+    list.innerHTML = currentFilter === 'absent'
+      ? '<div class="empty">✅ Ingen mangler!</div>'
+      : '<div class="empty">Ingen deltakere registrert ennå</div>';
+    return;
+  }
+  list.innerHTML = filtered.map(p => participantCardHTML(p, true)).join('');
+}
+
+function participantCardHTML(p, rollCallMode = false) {
+  const st  = attendance[p.id] || 'unknown';
+  const ico = st === 'present' ? '✅' : st === 'absent' ? '❌' : '❓';
+  const stLabel = st === 'present' ? 'Til stede' : st === 'absent' ? 'Fraværende' : 'Ikke sjekket';
+  const badges = [
+    p.allergy ? `<span class="pc-badge badge-allergy">⚠️ ${p.allergy}</span>` : '',
+    p.medical  ? `<span class="pc-badge badge-medical">💊 ${p.medical}</span>` : '',
+    p.diet     ? `<span class="pc-badge badge-diet">🥗 ${p.diet}</span>` : '',
+  ].filter(Boolean).join('');
+
+  return `
+    <div class="participant-card ${st}" id="pc-${p.id}">
+      <div class="pc-header" onclick="toggleCard('${p.id}')">
+        <div class="pc-avatar ${st}">${ico}</div>
+        <div class="pc-info">
+          <div class="pc-name">${p.name}</div>
+          <div class="pc-group">${[p.group, p.age ? p.age + ' år' : ''].filter(Boolean).join(' · ') || '—'}</div>
+          ${badges ? `<div class="pc-badges">${badges}</div>` : ''}
+        </div>
+        ${rollCallMode ? `
+          <button class="pc-status-btn ${st}" onclick="cycleStatus(event,'${p.id}')">${stLabel}</button>
+        ` : `
+          <button onclick="openEditModal(event,'${p.id}')" style="background:#EBF2FA;border:none;border-radius:6px;padding:7px 12px;color:#1F4E79;font-size:12px;cursor:pointer">✏️</button>
+        `}
+      </div>
+      <div class="pc-body" id="pcb-${p.id}">
+        ${p.allergy  ? `<div class="pc-detail-row"><span class="pc-detail-label">⚠️ Allergi</span><span class="pc-detail-val">${p.allergy}</span></div>` : ''}
+        ${p.medical  ? `<div class="pc-detail-row"><span class="pc-detail-label">💊 Medisin</span><span class="pc-detail-val">${p.medical}</span></div>` : ''}
+        ${p.diet     ? `<div class="pc-detail-row"><span class="pc-detail-label">🥗 Diett</span><span class="pc-detail-val">${p.diet}</span></div>` : ''}
+        ${p.note     ? `<div class="pc-note">📝 ${p.note}</div>` : ''}
+        ${!p.allergy && !p.medical && !p.diet && !p.note ? '<div style="font-size:13px;color:#aaa;margin-top:6px">Ingen ekstra info</div>' : ''}
+        ${!rollCallMode ? `<button onclick="deleteParticipant('${p.id}')" class="btn btn-gray btn-sm" style="margin-top:10px;background:#FFF0F0;color:#C00000;width:auto">🗑 Slett</button>` : ''}
+      </div>
+    </div>`;
+}
+
+window.toggleCard = (id) => document.getElementById('pcb-'+id).classList.toggle('open');
+
+window.cycleStatus = (e, id) => {
+  e.stopPropagation();
+  const cur = attendance[id] || 'unknown';
+  attendance[id] = cur === 'unknown' ? 'present' : cur === 'present' ? 'absent' : 'unknown';
+  localStorage.setItem('oyleir_attendance', JSON.stringify(attendance));
+  renderRollCall();
+  updateStats();
+};
+
+window.markAll = (present) => {
+  participants.forEach(p => { attendance[p.id] = present ? 'present' : 'unknown'; });
+  localStorage.setItem('oyleir_attendance', JSON.stringify(attendance));
+  renderRollCall();
+  updateStats();
+};
+
+window.saveRollCall = async () => {
+  const record = {
+    timestamp: new Date().toISOString(),
+    total: participants.length,
+    present: participants.filter(p => attendance[p.id] === 'present').length,
+    absent: participants.filter(p => attendance[p.id] === 'absent').length,
+    details: participants.map(p => ({ name: p.name, status: attendance[p.id] || 'unknown' }))
+  };
+  try {
+    await addDoc(collection(db, 'rollcalls'), { ...record, createdAt: serverTimestamp() });
+    showStatus('✓ Appell lagret', 'synced');
+  } catch {
+    const local = JSON.parse(localStorage.getItem('oyleir_rollcalls')||'[]');
+    local.push(record);
+    localStorage.setItem('oyleir_rollcalls', JSON.stringify(local));
+    showStatus('📵 Lagret lokalt', 'offline');
+  }
+};
+
+window.setFilter = (f, btn) => {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRollCall();
+};
+
+// ---- FULL LIST ----
+function renderList() {
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const list = document.getElementById('participant-list');
+  let filtered = participants.filter(p => !q || p.name.toLowerCase().includes(q));
+  if (!filtered.length) { list.innerHTML = '<div class="empty">Ingen deltakere funnet</div>'; return; }
+  list.innerHTML = filtered.map(p => participantCardHTML(p, false)).join('');
+}
+
+// ---- MEDICAL VIEW ----
+function renderMedical() {
+  const list = document.getElementById('medical-list');
+  const med = participants.filter(p => p.allergy || p.medical || p.diet);
+  if (!med.length) { list.innerHTML = '<div class="empty">Ingen deltakere med registrert medisinsk info</div>'; return; }
+  list.innerHTML = med.map(p => {
+    return `<div style="background:white;border-radius:10px;padding:14px;margin-bottom:10px;border-left:5px solid ${p.allergy?'#C00000':p.medical?'#9C6500':'#276221'};box-shadow:0 1px 4px rgba(0,0,0,0.07)">
+      <div style="font-size:15px;font-weight:bold;color:#1a1a1a">${p.name}</div>
+      <div style="font-size:12px;color:#888;margin-bottom:8px">${p.group||''}${p.age?' · '+p.age+' år':''}</div>
+      ${p.allergy ? `<div style="background:#FFF0F0;border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px"><b>⚠️ Allergi:</b> ${p.allergy}</div>` : ''}
+      ${p.medical ? `<div style="background:#FFFDE7;border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px"><b>💊 Medisin:</b> ${p.medical}</div>` : ''}
+      ${p.diet    ? `<div style="background:#F0FFF4;border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px"><b>🥗 Diett:</b> ${p.diet}</div>` : ''}
+      ${p.note    ? `<div style="font-size:13px;color:#555;margin-top:4px">📝 ${p.note}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ---- ADD / EDIT ----
+window.openAddModal = () => {
+  editingId = null;
+  document.getElementById('modal-add-title').textContent = 'Legg til deltaker';
+  ['p-name','p-group','p-age','p-allergy','p-medical','p-diet','p-note'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('edit-id').value = '';
+  document.getElementById('modal-add').classList.add('open');
+};
+
+window.openEditModal = (e, id) => {
+  e.stopPropagation();
+  const p = participants.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  document.getElementById('modal-add-title').textContent = 'Rediger deltaker';
+  document.getElementById('edit-id').value    = id;
+  document.getElementById('p-name').value     = p.name || '';
+  document.getElementById('p-group').value    = p.group || '';
+  document.getElementById('p-age').value      = p.age || '';
+  document.getElementById('p-allergy').value  = p.allergy || '';
+  document.getElementById('p-medical').value  = p.medical || '';
+  document.getElementById('p-diet').value     = p.diet || '';
+  document.getElementById('p-note').value     = p.note || '';
+  document.getElementById('modal-add').classList.add('open');
+};
+
+window.saveParticipant = async () => {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) { alert('Navn er påkrevd'); return; }
+  const data = {
+    name,
+    group:   document.getElementById('p-group').value.trim(),
+    age:     document.getElementById('p-age').value || null,
+    allergy: document.getElementById('p-allergy').value.trim(),
+    medical: document.getElementById('p-medical').value.trim(),
+    diet:    document.getElementById('p-diet').value.trim(),
+    note:    document.getElementById('p-note').value.trim(),
+  };
+  try {
+    if (editingId) {
+      await setDoc(doc(db, 'participants', editingId), data);
+      showStatus('✓ Oppdatert', 'synced');
+    } else {
+      await addDoc(collection(db, 'participants'), { ...data, createdAt: serverTimestamp() });
+      showStatus('✓ Deltaker lagt til', 'synced');
+    }
+  } catch { showStatus('Kan ikke lagre — ingen internett', 'error'); }
+  closeModal();
+};
+
+window.deleteParticipant = async (id) => {
+  if (!confirm('Slett denne deltakeren?')) return;
+  try { await deleteDoc(doc(db, 'participants', id)); showStatus('✓ Slettet', 'synced'); }
+  catch { showStatus('Kan ikke slette', 'error'); }
+};
+
+window.closeModal = () => document.getElementById('modal-add').classList.remove('open');
+window.showPage  = (name, btn) => {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+};
+
+document.getElementById('modal-add').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-add')) closeModal();
+});
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
